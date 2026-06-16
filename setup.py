@@ -14,7 +14,7 @@ setting = {
                 'name': '설정',
             },
             {
-                'uri': 'main/log', # ★ 로그 메뉴 추가
+                'uri': 'log', # ★ 요청하신 대로 'log'로 변경했습니다.
                 'name': '로그',
             }
         ]
