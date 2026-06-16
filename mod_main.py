@@ -1,18 +1,16 @@
+import os
 import traceback
-from flask import Response, render_template, request
+from flask import Response, render_template, request, jsonify
+from framework import path_data  # ★ 로그 파일 경로를 찾기 위해 추가
 from .setup import *
 from . import logic
 
-# ★ 프레임워크 규칙을 깨고 우리가 직접 만든 '/fx/' 전용 프리패스 라우터입니다!
 @P.blueprint.route('/fx/<path:sub>', methods=['GET', 'POST', 'OPTIONS', 'HEAD'])
 def custom_fx_route(sub):
     try:
-        # 영상/자막/라이선스 실시간 중계
         if sub.startswith("route/"):
             target_path = "/" + sub.replace("route/", "", 1)
             return logic.universal_route(target_path, request)
-        
-        # 기본 재생목록(M3U) 호출
         return logic.proxy_m3u(sub, request)
     except Exception as e:
         P.logger.error(traceback.format_exc())
@@ -39,8 +37,6 @@ class ModuleMain(PluginModuleBase):
                     arg[key] = value
             
             base_url = req.url_root.rstrip('/')
-            
-            # ★ 설정 화면의 복사 버튼 주소도 /fx/ 로 변경
             arg['base_api_url'] = f"{base_url}/{P.package_name}/fx/"
 
             return render_template(f"{P.package_name}_{self.name}_{sub}.html", arg=arg)
@@ -48,3 +44,17 @@ class ModuleMain(PluginModuleBase):
         except Exception as e:
             P.logger.error(traceback.format_exc())
             return f"<h1>에러</h1><pre>{traceback.format_exc()}</pre>"
+
+    # ★ 추가: 화면에서 로그 데이터를 요청할 때 파일을 읽어서 전달하는 함수
+    def process_ajax(self, sub, req):
+        try:
+            if sub == "get_log":
+                log_file = os.path.join(path_data, 'log', f"{P.package_name}.log")
+                if os.path.exists(log_file):
+                    with open(log_file, 'r', encoding='utf-8') as f:
+                        return jsonify({"ret": "success", "data": f.read()})
+                return jsonify({"ret": "error", "data": "로그 파일이 아직 생성되지 않았습니다."})
+                
+        except Exception as e:
+            P.logger.error(traceback.format_exc())
+            return jsonify({"ret": "error", "data": f"로그 읽기 에러: {str(e)}"})
