@@ -1,6 +1,6 @@
 import traceback
 from flask import Response, render_template, request
-from framework import SystemModelSetting  # ★ 프레임워크 기본 설정 불러오기
+from plugin import F  # ★ 프레임워크 전역 객체(F) 가져오기
 from .setup import *
 from . import logic
 
@@ -35,8 +35,8 @@ class ModuleMain(PluginModuleBase):
                 if key not in arg:
                     arg[key] = value
             
-            # ★ 핵심: 시스템 설정에서 DDNS를 가져오고, 없으면 기본 접속 주소를 사용합니다.
-            sys_ddns = SystemModelSetting.get('ddns')
+            # ★ F 객체를 통해 안전하게 DDNS를 가져옵니다.
+            sys_ddns = F.SystemModelSetting.get('ddns')
             base_url = sys_ddns.rstrip('/') if sys_ddns else req.url_root.rstrip('/')
             
             arg['base_api_url'] = f"{base_url}/{P.package_name}/fx/"
