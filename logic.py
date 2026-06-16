@@ -6,6 +6,7 @@ from .setup import P
 def proxy_m3u(user_id, req):
     target_url = "알 수 없는 주소"
     try:
+        # 1. 설정창에서 입력한 매핑 정보 불러오기
         mapping_str = P.ModelSetting.get("id_mapping")
         mappings = {}
         if mapping_str:
@@ -17,13 +18,15 @@ def proxy_m3u(user_id, req):
         if user_id not in mappings:
             return Response("권한이 없거나 등록되지 않은 ID입니다.", status=403)
         
-        api_key = mappings[user_id]
+        # 2. API키만 가져오는 것이 아니라, 입력한 전체 주소를 그대로 가져옵니다.
+        target_url = mappings[user_id]
         
-        # 1. 도커 내부 루프백 문제를 피하기 위해 클라이언트가 접속한 기본 주소를 동적으로 가져옵니다.
+        # 3. 네트워크 통신 오류 방지 (외부 IP로 들어왔어도 서버 내부 127.0.0.1 통신으로 강제 변환)
         base_url = req.url_root.rstrip('/')
-        target_url = f"{base_url}/alive/api/m3uall?apikey={api_key}"
+        if target_url.startswith(base_url):
+            target_url = target_url.replace(base_url, "http://127.0.0.1:9999")
         
-        # 2. 서버 통신 타임아웃을 넉넉히(20초) 잡고, 정상적인 접근인 것처럼 헤더를 설정합니다.
+        # 4. 데이터 요청
         headers = {'User-Agent': req.headers.get('User-Agent', 'Mozilla/5.0')}
         res = requests.get(target_url, headers=headers, timeout=20)
         res.raise_for_status() 
@@ -34,6 +37,5 @@ def proxy_m3u(user_id, req):
         P.logger.error(f"[addrhide] Proxy Error: {e}")
         P.logger.error(traceback.format_exc())
         
-        # 3. 스마트폰이나 PC의 브라우저 화면에 정확한 에러 원인과 주소를 출력하여 디버깅을 돕습니다.
         error_msg = f"데이터를 불러오는 중 오류가 발생했습니다.<br><br>시도한 주소: {target_url}<br>에러 원인: {str(e)}"
         return Response(error_msg, status=500)
