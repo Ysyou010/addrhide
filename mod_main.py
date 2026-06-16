@@ -1,6 +1,5 @@
 import traceback
 from flask import Response, render_template, request
-from plugin import F  # ★ 프레임워크 전역 객체(F) 가져오기
 from .setup import *
 from . import logic
 
@@ -39,9 +38,7 @@ class ModuleMain(PluginModuleBase):
                 if key not in arg:
                     arg[key] = value
             
-            # ★ F 객체를 통해 안전하게 DDNS를 가져옵니다.
-            sys_ddns = F.SystemModelSetting.get('ddns')
-            base_url = sys_ddns.rstrip('/') if sys_ddns else req.url_root.rstrip('/')
+            base_url = req.url_root.rstrip('/')
             
             # ★ 설정 화면의 복사 버튼 주소도 /fx/ 로 변경
             arg['base_api_url'] = f"{base_url}/{P.package_name}/fx/"
