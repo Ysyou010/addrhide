@@ -1,4 +1,5 @@
-from plugin import PluginManager
+from .setup import P
+from .mod_main import ModuleMain
 
-# 프레임워크에 addrhide 패키지를 등록합니다.
-P = PluginManager('addrhide', __file__)
+# 시스템이 시작될 때 메인 모듈을 불러옵니다.
+P.set_module_list([ModuleMain])
