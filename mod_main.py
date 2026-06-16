@@ -1,5 +1,6 @@
 import traceback
 from flask import Response, render_template, request
+from framework import SystemModelSetting  # ★ 프레임워크 기본 설정 불러오기
 from .setup import *
 from . import logic
 
@@ -38,7 +39,8 @@ class ModuleMain(PluginModuleBase):
                 if key not in arg:
                     arg[key] = value
             
-            base_url = req.url_root.rstrip('/')
+            sys_ddns = SystemModelSetting.get('ddns')
+            base_url = sys_ddns.rstrip('/') if sys_ddns else req.url_root.rstrip('/')
             
             # ★ 설정 화면의 복사 버튼 주소도 /fx/ 로 변경
             arg['base_api_url'] = f"{base_url}/{P.package_name}/fx/"
