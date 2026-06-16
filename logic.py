@@ -2,6 +2,7 @@ import traceback
 import requests
 from urllib.parse import urlparse
 from flask import Response, stream_with_context
+from framework import SystemModelSetting  # ★ 프레임워크 기본 설정 불러오기
 from .setup import P
 
 def proxy_m3u(user_id, req):
@@ -24,11 +25,15 @@ def proxy_m3u(user_id, req):
         path_parts = parsed_url.path.strip('/').split('/')
         origin_plugin = path_parts[0] if path_parts else "alive"
         
-        base_url = req.url_root.rstrip('/')
+        # ★ 핵심: M3U 주소 생성 시 DDNS를 최우선으로 사용합니다.
+        sys_ddns = SystemModelSetting.get('ddns')
+        base_url = sys_ddns.rstrip('/') if sys_ddns else req.url_root.rstrip('/')
+        
         local_port = req.environ.get('SERVER_PORT', '9999')
         local_url = f"http://127.0.0.1:{local_port}"
         
         fetch_url = target_url
+        # 사용자가 설정에 입력한 주소가 DDNS와 일치하면 127.0.0.1로 내부 변환하여 속도 향상
         if target_url.startswith(base_url):
             fetch_url = target_url.replace(base_url, local_url)
             
@@ -43,7 +48,7 @@ def proxy_m3u(user_id, req):
         res_text = res_text.replace(f"{local_url}/{origin_plugin}/", tmp_marker)
         res_text = res_text.replace(f"/{origin_plugin}/", tmp_marker)
         
-        # ★ 변경점: M3U 안의 재생 주소들을 전부 /fx/ 로 예쁘게 치환합니다.
+        # M3U 내부 주소를 완벽한 DDNS 기반의 /fx/ 주소로 치환
         final_route = f"{base_url}/{P.package_name}/fx/route/{origin_plugin}/"
         res_text = res_text.replace(tmp_marker, final_route)
         
