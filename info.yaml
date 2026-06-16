@@ -1,0 +1,4 @@
+package_name: addrhide
+version: 1.0.0
+description: API 키를 노출하지 않고 안전하게 m3u 주소를 연결해 주는 프록시 플러그인
+author: ysyou010
