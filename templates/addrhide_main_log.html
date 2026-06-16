@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<div>
+  <div class="d-flex justify-content-between align-items-center mb-2 mt-3">
+    <h5 class="mb-0 font-weight-bold text-primary"><i class="fa fa-terminal"></i> 플러그인 실시간 로그</h5>
+    <div>
+        <button id="refresh_log_btn" class="btn btn-sm btn-outline-success"><i class="fa fa-refresh"></i> 새로고침</button>
+        <button id="clear_log_viewer_btn" class="btn btn-sm btn-outline-secondary"><i class="fa fa-eraser"></i> 화면 지우기</button>
+    </div>
+  </div>
+  
+  <textarea id="log_viewer" class="form-control" rows="25" readonly 
+    style="background-color: #1e1e1e; color: #4af626; font-family: Consolas, monospace; font-size: 13px; resize: vertical;"></textarea>
+</div>
+
+<script type="text/javascript">
+function loadLog() {
+    $.ajax({
+        url: '/' + PACKAGE_NAME + '/ajax/get_log',
+        type: 'POST',
+        dataType: 'json',
+        success: function(res) {
+            var $log = $('#log_viewer');
+            if (res.ret === 'success') {
+                $log.val(res.data);
+            } else {
+                $log.val("System Message: " + res.data);
+            }
+            // 스크롤을 항상 가장 최신 로그(맨 아래)로 이동
+            $log.scrollTop($log[0].scrollHeight);
+        }
+    });
+}
+
+$(document).ready(function() {
+    loadLog(); // 탭에 들어오자마자 로그 불러오기
+});
+
+// 새로고침 버튼 클릭 시
+$('body').on('click', '#refresh_log_btn', function(e){
+    e.preventDefault();
+    loadLog();
+    notify('로그를 새로고침 했습니다.', 'success');
+});
+
+// 화면 지우기 버튼 클릭 시 (실제 파일이 지워지는 것은 아니고 화면만 비움)
+$('body').on('click', '#clear_log_viewer_btn', function(e){
+    e.preventDefault();
+    $('#log_viewer').val('');
+});
+</script>
+{% endblock %}
