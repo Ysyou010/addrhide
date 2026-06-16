@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+<div>
+  <form id="setting" name="setting">
+    
+    <div class="form-group row mt-3">
+      <label class="col-sm-3 control-label text-sm-right">ID 및 API키 매핑</label>
+      <div class="col-sm-9">
+        <textarea id="id_mapping" name="id_mapping" class="form-control" rows="8">{{ arg.get('id_mapping', '') }}</textarea>
+        <small class="form-text text-muted">
+          <code>사용할ID : 실제API키</code> 형식으로 한 줄에 하나씩 입력하세요.<br>
+          예시) <code>family : abcdef123456</code><br>
+          (수정을 마치고 빈 공간을 클릭하면 조용히 자동 저장됩니다.)
+        </small>
+      </div>
+    </div>
+    
+    {{ macros.m_hr() }}
+    
+    <div class="form-group row">
+      <label class="col-sm-3 control-label text-sm-right">생성된 M3U 주소</label>
+      <div class="col-sm-9" id="m3u_urls_display">
+        </div>
+    </div>
+    
+  </form>
+</div>
+
+<script type="text/javascript">
+var base_api_url = "{{ arg.base_api_url }}";
+
+// 설정 저장 (FlaskFarm 표준 방식)
+function autoSaveList() {
+    $.ajax({
+        url: '/addrhide/ajax/setting_save',
+        type: "POST", 
+        cache: false,
+        data: $('#setting').serialize(),
+        dataType: "json",
+        success: function (data) {
+            renderUrls();
+        }
+    });
+}
+
+// 텍스트 영역을 벗어나면(change) 자동 저장 실행
+$("body").on('change', '#id_mapping', function() { autoSaveList(); });
+
+// 화면에 주소록 렌더링
+function renderUrls() {
+    var lines = $('#id_mapping').val().split('\n');
+    var html = '';
+    
+    for(var i=0; i<lines.length; i++) {
+        var line = lines[i].trim();
+        if(line !== '' && line.indexOf(':') !== -1) {
+            var id = line.split(':')[0].trim();
+            var url = base_api_url + id;
+            
+            html += '<div class="input-group mb-2">';
+            html += '  <div class="input-group-prepend"><span class="input-group-text" style="width: 120px;">[' + id + ']</span></div>';
+            html += '  <input type="text" class="form-control" value="' + url + '" readonly>';
+            html += '  <div class="input-group-append"><button class="btn btn-secondary btn_copy_url" data-clipboard-text="' + url + '">복사</button></div>';
+            html += '</div>';
+        }
+    }
+    if(html === '') {
+        html = '<div class="text-muted">설정된 매핑 정보가 없습니다.</div>';
+    }
+    $('#m3u_urls_display').html(html);
+}
+
+$(document).ready(function(){
+    renderUrls();
+});
+
+// 복사 버튼 기능
+$("body").on('click', '.btn_copy_url', function(e){
+    e.preventDefault();
+    var text = $(this).data('clipboard-text');
+    var t = document.createElement("textarea"); 
+    document.body.appendChild(t); 
+    t.value = text; 
+    t.select(); 
+    document.execCommand('copy'); 
+    document.body.removeChild(t);
+    notify('M3U 단축 주소가 복사되었습니다.', 'success');
+});
+</script>
+{% endblock %}
