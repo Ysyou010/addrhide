@@ -1,12 +1,12 @@
 import traceback
 import requests
-from urllib.parse import urlparse
-from flask import Response, stream_with_context
+from flask import Response
 from .setup import P
 
 def proxy_m3u(user_id, req):
     target_url = "알 수 없는 주소"
     try:
+        # 1. 설정창에서 입력한 매핑 정보 불러오기
         mapping_str = P.ModelSetting.get("id_mapping")
         mappings = {}
         if mapping_str:
@@ -20,81 +20,35 @@ def proxy_m3u(user_id, req):
         
         target_url = mappings[user_id]
         
-        parsed_url = urlparse(target_url)
-        path_parts = parsed_url.path.strip('/').split('/')
-        origin_plugin = path_parts[0] if path_parts else "alive"
-        
+        # 2. 클라이언트의 실제 외부 주소(예: http://140.238.4.62:9999)
         base_url = req.url_root.rstrip('/')
-        local_port = req.environ.get('SERVER_PORT', '9999')
-        local_url = f"http://127.0.0.1:{local_port}"
+        is_local_call = False
         
-        fetch_url = target_url
+        # 3. 내부 통신으로 변환 (서버 부하 및 네트워크 오류 방지)
         if target_url.startswith(base_url):
-            fetch_url = target_url.replace(base_url, local_url)
-            
-        headers = {'User-Agent': req.headers.get('User-Agent', 'Mozilla/5.0'), 'Host': req.host}
-        res = requests.get(fetch_url, headers=headers, timeout=20)
-        res.raise_for_status()
+            target_url = target_url.replace(base_url, "http://127.0.0.1:9999")
+            is_local_call = True
+        
+        # 4. 🌟 핵심: 원본 서버에 요청할 때, 내가 127.0.0.1이 아니라 '외부 주소'인 척 Host 헤더를 넘겨줍니다.
+        headers = {
+            'User-Agent': req.headers.get('User-Agent', 'Mozilla/5.0'),
+            'Host': req.host
+        }
+        
+        res = requests.get(target_url, headers=headers, timeout=20)
+        res.raise_for_status() 
         
         res_text = res.text
         
-        # 주소 중복 치환을 막기 위한 안전한 마커 사용
-        tmp_marker = "__ADDRHIDE_MARKER__"
-        res_text = res_text.replace(f"{base_url}/{origin_plugin}/", tmp_marker)
-        res_text = res_text.replace(f"{local_url}/{origin_plugin}/", tmp_marker)
-        res_text = res_text.replace(f"/{origin_plugin}/", tmp_marker)
-        
-        final_route = f"{base_url}/{P.package_name}/normal/route/{origin_plugin}/"
-        res_text = res_text.replace(tmp_marker, final_route)
+        # 5. 🌟 2차 방어: 혹시라도 M3U 파일 안에 127.0.0.1로 적힌 영상 주소가 있다면 외부 주소로 강제 치환!
+        if is_local_call:
+            res_text = res_text.replace("http://127.0.0.1:9999", base_url)
         
         return Response(res_text, mimetype='application/x-mpegurl')
 
     except Exception as e:
-        P.logger.error(f"[addrhide] Proxy M3U Error: {e}")
+        P.logger.error(f"[addrhide] Proxy Error: {e}")
         P.logger.error(traceback.format_exc())
-        return Response(f"에러 발생<br>주소: {target_url}<br>원인: {e}", status=500)
-
-def universal_route(req):
-    try:
-        # 🌟 SJVA 라우팅 특성 대응: 잘려나간 경로 대신, 원본 요청 경로(req.path)에서 진짜 주소 추출
-        if "/route" not in req.path:
-            return Response("잘못된 라우트 경로", status=400)
-            
-        target_path = req.path.split("/route", 1)[1]
         
-        local_port = req.environ.get('SERVER_PORT', '9999')
-        url = f"http://127.0.0.1:{local_port}{target_path}"
-        
-        if req.query_string:
-            url += f"?{req.query_string.decode('utf-8')}"
-            
-        # 프록시 에러를 유발하는 Host 및 길이 헤더 강제 제거
-        req_headers = {k: v for k, v in req.headers.items() if k.lower() not in ['host', 'content-length']}
-        
-        res = requests.request(
-            method=req.method,
-            url=url,
-            headers=req_headers,
-            data=req.get_data(),
-            cookies=req.cookies,
-            allow_redirects=False,
-            stream=True,  
-            timeout=30
-        )
-        
-        # 반환할 때도 꼬일 수 있는 헤더 제거
-        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-        resp_headers = [(k, v) for k, v in res.raw.headers.items() if k.lower() not in excluded_headers]
-        
-        # 끊김 없이 1MB씩 안정적으로 실시간 전송
-        return Response(
-            stream_with_context(res.iter_content(chunk_size=1048576)), 
-            status=res.status_code, 
-            headers=resp_headers, 
-            content_type=res.headers.get('Content-Type')
-        )
-        
-    except Exception as e:
-        P.logger.error(f"[addrhide] Universal Route Error: {e}")
-        P.logger.error(traceback.format_exc())
-        return Response("재생 중계 오류", status=500)
+        error_msg = f"데이터를 불러오는 중 오류가 발생했습니다.<br><br>시도한 주소: {target_url}<br>에러 원인: {str(e)}"
+        return Response(error_msg, status=500)
