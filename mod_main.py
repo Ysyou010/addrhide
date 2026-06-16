@@ -1,7 +1,22 @@
 import traceback
-from flask import Response, render_template
+from flask import Response, render_template, request
 from .setup import *
 from . import logic
+
+# ★ 프레임워크 규칙을 깨고 우리가 직접 만든 '/fx/' 전용 프리패스 라우터입니다!
+@P.blueprint.route('/fx/<path:sub>', methods=['GET', 'POST', 'OPTIONS', 'HEAD'])
+def custom_fx_route(sub):
+    try:
+        # 영상/자막/라이선스 실시간 중계
+        if sub.startswith("route/"):
+            target_path = "/" + sub.replace("route/", "", 1)
+            return logic.universal_route(target_path, request)
+        
+        # 기본 재생목록(M3U) 호출
+        return logic.proxy_m3u(sub, request)
+    except Exception as e:
+        P.logger.error(traceback.format_exc())
+        return Response(str(e), status=500, mimetype="text/plain")
 
 class ModuleMain(PluginModuleBase):
     def __init__(self, P):
@@ -25,19 +40,11 @@ class ModuleMain(PluginModuleBase):
             
             base_url = req.url_root.rstrip('/')
             
-            # ★ 변경점 1: 화면에 표시될 주소를 /api/ 대신 /normal/ 로 변경
-            arg['base_api_url'] = f"{base_url}/{P.package_name}/normal/"
+            # ★ 설정 화면의 복사 버튼 주소도 /fx/ 로 변경
+            arg['base_api_url'] = f"{base_url}/{P.package_name}/fx/"
 
             return render_template(f"{P.package_name}_{self.name}_{sub}.html", arg=arg)
             
         except Exception as e:
             P.logger.error(traceback.format_exc())
             return f"<h1>에러</h1><pre>{traceback.format_exc()}</pre>"
-
-    # ★ 변경점 2: 프레임워크 API 보안 검사를 우회하기 위해 process_api 대신 process_normal 사용
-    def process_normal(self, sub, req):
-        try:
-            return logic.proxy_m3u(sub, req)
-        except Exception as e:
-            P.logger.error(traceback.format_exc())
-            return Response(str(e), status=500, mimetype="text/plain")
