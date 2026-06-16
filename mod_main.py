@@ -1,7 +1,6 @@
-import os
 import traceback
-from flask import Response, render_template, request, jsonify
-from framework import path_data  # ★ 로그 파일 경로를 찾기 위해 추가
+from flask import Response, render_template, request
+from framework import SystemModelSetting  # ★ 프레임워크 기본 설정 불러오기
 from .setup import *
 from . import logic
 
@@ -36,7 +35,10 @@ class ModuleMain(PluginModuleBase):
                 if key not in arg:
                     arg[key] = value
             
-            base_url = req.url_root.rstrip('/')
+            # ★ 핵심: 시스템 설정에서 DDNS를 가져오고, 없으면 기본 접속 주소를 사용합니다.
+            sys_ddns = SystemModelSetting.get('ddns')
+            base_url = sys_ddns.rstrip('/') if sys_ddns else req.url_root.rstrip('/')
+            
             arg['base_api_url'] = f"{base_url}/{P.package_name}/fx/"
 
             return render_template(f"{P.package_name}_{self.name}_{sub}.html", arg=arg)
@@ -44,17 +46,3 @@ class ModuleMain(PluginModuleBase):
         except Exception as e:
             P.logger.error(traceback.format_exc())
             return f"<h1>에러</h1><pre>{traceback.format_exc()}</pre>"
-
-    # ★ 추가: 화면에서 로그 데이터를 요청할 때 파일을 읽어서 전달하는 함수
-    def process_ajax(self, sub, req):
-        try:
-            if sub == "get_log":
-                log_file = os.path.join(path_data, 'log', f"{P.package_name}.log")
-                if os.path.exists(log_file):
-                    with open(log_file, 'r', encoding='utf-8') as f:
-                        return jsonify({"ret": "success", "data": f.read()})
-                return jsonify({"ret": "error", "data": "로그 파일이 아직 생성되지 않았습니다."})
-                
-        except Exception as e:
-            P.logger.error(traceback.format_exc())
-            return jsonify({"ret": "error", "data": f"로그 읽기 에러: {str(e)}"})
