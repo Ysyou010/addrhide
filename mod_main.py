@@ -1,15 +1,18 @@
 import traceback
 from flask import Response, render_template, request
-from plugin import F  # ★ 프레임워크 전역 객체(F) 가져오기
 from .setup import *
 from . import logic
 
+# ★ 프레임워크 규칙을 깨고 우리가 직접 만든 '/fx/' 전용 프리패스 라우터입니다!
 @P.blueprint.route('/fx/<path:sub>', methods=['GET', 'POST', 'OPTIONS', 'HEAD'])
 def custom_fx_route(sub):
     try:
+        # 영상/자막/라이선스 실시간 중계
         if sub.startswith("route/"):
             target_path = "/" + sub.replace("route/", "", 1)
             return logic.universal_route(target_path, request)
+        
+        # 기본 재생목록(M3U) 호출
         return logic.proxy_m3u(sub, request)
     except Exception as e:
         P.logger.error(traceback.format_exc())
@@ -35,22 +38,9 @@ class ModuleMain(PluginModuleBase):
                 if key not in arg:
                     arg[key] = value
             
-            # ★ F 객체를 통해 안전하게 DDNS를 가져옵니다.
-            sys_ddns = F.SystemModelSetting.get('ddns')
-            base_url = sys_ddns.rstrip('/') if sys_ddns else req.url_root.rstrip('/')
+            base_url = req.url_root.rstrip('/')
             
-            arg['base_api_url'] = f"{base_url}/{P.package_name}/fx/"
-
-            return render_template(f"{P.package_name}_{self.name}_{sub}.html", arg=arg)
-            
-        except Exception as e:
-            P.logger.error(traceback.format_exc())
-            return f"<h1>에러</h1><pre>{traceback.format_exc()}</pre>"
-            
-            # ★ F 객체를 통해 안전하게 DDNS를 가져옵니다.
-            sys_ddns = F.SystemModelSetting.get('ddns')
-            base_url = sys_ddns.rstrip('/') if sys_ddns else req.url_root.rstrip('/')
-            
+            # ★ 설정 화면의 복사 버튼 주소도 /fx/ 로 변경
             arg['base_api_url'] = f"{base_url}/{P.package_name}/fx/"
 
             return render_template(f"{P.package_name}_{self.name}_{sub}.html", arg=arg)
