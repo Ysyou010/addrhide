@@ -46,3 +46,15 @@ class ModuleMain(PluginModuleBase):
         except Exception as e:
             P.logger.error(traceback.format_exc())
             return f"<h1>에러</h1><pre>{traceback.format_exc()}</pre>"
+            
+            # ★ F 객체를 통해 안전하게 DDNS를 가져옵니다.
+            sys_ddns = F.SystemModelSetting.get('ddns')
+            base_url = sys_ddns.rstrip('/') if sys_ddns else req.url_root.rstrip('/')
+            
+            arg['base_api_url'] = f"{base_url}/{P.package_name}/fx/"
+
+            return render_template(f"{P.package_name}_{self.name}_{sub}.html", arg=arg)
+            
+        except Exception as e:
+            P.logger.error(traceback.format_exc())
+            return f"<h1>에러</h1><pre>{traceback.format_exc()}</pre>"
