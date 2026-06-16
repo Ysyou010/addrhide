@@ -34,11 +34,12 @@ class ModuleMain(PluginModuleBase):
 
     def process_normal(self, sub, req):
         try:
-            # 🌟 추가된 부분: 라이선스 해독 요청이 오면 전용 프록시로 연결
-            if sub == "license":
-                return logic.license_proxy(req)
+            # 'route'로 요청이 오면 전체 경로(req)를 분석하는 만능 라우터로 연결
+            if sub == "route":
+                return logic.universal_route(req)
                 
             return logic.proxy_m3u(sub, req)
+            
         except Exception as e:
             P.logger.error(traceback.format_exc())
             return Response(str(e), status=500, mimetype="text/plain")
