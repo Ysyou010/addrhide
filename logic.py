@@ -75,7 +75,7 @@ def universal_route(target_path, req):
             timeout=30
         )
         
-        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+        excluded_headers = ['content-encoding', 'transfer-encoding', 'connection']
         resp_headers = [(k, v) for k, v in res.raw.headers.items() if k.lower() not in excluded_headers]
         
         return Response(
