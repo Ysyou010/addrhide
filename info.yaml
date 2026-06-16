@@ -1,5 +1,5 @@
 title: "주소 숨김 프록시"
-version: "0.1.0"
+version: "0.1.1"
 package_name: "addrhide"
 developer: "ysyou"
 description: "M3U API 키와 원본 주소를 숨기고 단축 URL로 연결하는 플러그인"
